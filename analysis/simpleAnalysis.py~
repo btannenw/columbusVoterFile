@@ -1,5 +1,0 @@
-### Author: Ben Tannenwald
-### Date: Oct 19, 2017
-### Purpose: test split sub-samples of voter file
-
-import json
