@@ -6,7 +6,7 @@ import json
 
 voterFile = open('CITY_OR_VILLAGE_COLUMBUS.txt', 'r')
 
-i, voters, voterDict = 0, [], {}
+voters = []
 with open('CITY_OR_VILLAGE_COLUMBUS.txt' , 'r') as voterFile:
     headerLine = voterFile.readline()
     print "Starting to process voter file....."
@@ -15,25 +15,8 @@ with open('CITY_OR_VILLAGE_COLUMBUS.txt' , 'r') as voterFile:
         # **  Make general flat list  **
         voters.append(voterLine.split('\t'))
         
-        ## **  Make dict sorted by State ID  **
-        #tempDict = {}
-        #stateID = voterLine.split('\t')[0]
-        ## **  Make sub-dict of non-stateID elements  **
-        ##print len(headerLine.split('\t')), len(voterLine.split('\t'))
-        #for j, column in enumerate(headerLine.split('\t')):
-        #    #print column, headerLine.index(column), j
-        #    if j > 0:
-        #       tempDict[column] = voterLine.split('\t')[j]
-        #if i < 5:
-        #    print j, tempDict
-        ## **  Check if State ID already in keys [SHOULDN'T BE]  **
-        #if stateID not in voterDict.keys():
-        #    voterDict[stateID] = tempDict
-        #else:
-        #    print 'AHHHHH, non-unique State IDs. Not sure what to do about this !!!!!!!!!!!!!!!!!!!!!!!!!!'                     
-        i=i+1
-        if i%50000 == 0:
-            print 'Processed', i, 'Voters'
+        if len(voters)%50000 == 0:
+            print 'Processed', len(voters), 'Voters'
             
 print '\nSimple Summary\n=============================================================================='
 nActive, nInactive, nActive_D, nActive_R, nActive_U, nActive_G, nActive_L = 0,0,0,0,0,0,0
@@ -75,3 +58,19 @@ print '\nWriting flat JSON....'
 with open('masterFlatVoterFile.json', 'w') as fp:
     json.dump(voters, fp)
 
+print '\nSplitting into subsamples and writing flat JSONs....'
+
+voters_split, temp_voters, nSplits = [], [], 0
+for voter in voters:
+    temp_voters.append(voter)
+    if len(temp_voters)%100e3 == 0:
+        nSplits = nSplits + 1
+        with open('masterFlatVoterFile_subSample_{0}.json'.format(nSplits), 'w') as fp:
+            json.dump(temp_voters, fp)
+        print '.. Saved 100k votes in subSample', nSplits
+        temp_voters=[]
+# do last split with remaining voters
+nSplits = nSplits + 1
+with open('masterFlatVoterFile_subSample_{0}.json'.format(nSplits), 'w') as fp:
+    json.dump(temp_voters, fp)
+print '.. Saved {0} votes in subSample'.format(len(temp_voters)), nSplits
