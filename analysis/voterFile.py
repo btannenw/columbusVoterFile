@@ -40,26 +40,31 @@ class voterFile(object):
         self.nActive_G = self.countVotersByStatusAndParty(status='A', party='G')
         self.nActive_U = self.countVotersByStatusAndParty(status='A', party='U')
 
-    def calculateCorrelation(self, registered, election1, election2, title):
+    def calculateCorrelation(self, registered, election1, election2, title, activeOnly=True, party=[]):
         """ function to calculate and print correlation between voting behavior in two elections"""
 
-        voted1 = self.makeElectionList(registered, election1)
-        voted2 = self.makeElectionList(registered, election2)
+        voted1 = self.makeElectionList(registered, election1, activeOnly, party)
+        voted2 = self.makeElectionList(registered, election2, activeOnly, party)
 
         array1 = np.array(voted1)
         array2 = np.array(voted2)
         corr, pvalue = pearsonr(array1, array2)
         print title, ', correlation =', corr, ', p-value =', pvalue
         
-    def makeElectionList(self, registered, election):
+    def makeElectionList(self, registered, election, activeOnly, party):
         """ function to return list of vote history for an election using only eligible voters"""
 
         electionList = []
         for voter in self.voters:
-            if getattr(voter, registered) and getattr(voter, election):
+            activeStatus = True if voter.status=='A' or not activeOnly else False
+            if party is str: # make party list if single string
+                party = [party]
+            partyFilter  = True if len(party)==0 or (len(party)>0 and voter.party in party) else False 
+            
+            if getattr(voter, registered) and getattr(voter, election) and activeStatus and partyFilter:
                 #electionList.append(True)
                 electionList.append(1)
-            elif getattr(voter, registered) and not getattr(voter, election):
+            elif getattr(voter, registered) and not getattr(voter, election) and activeStatus and partyFilter:
                 #electionList.append(False)
                 electionList.append(-1)
             
