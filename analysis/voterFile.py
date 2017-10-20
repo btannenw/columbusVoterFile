@@ -3,6 +3,7 @@
 ### Purpose: class to provide human-readable functions to parse each voter in the JSON'ed voter file AND class to hold dictionary of parsed voters
 
 import numpy as np
+from scipy.stats.stats import pearsonr
 
 class voterFile(object):
     """A class for parsing voter file information.
@@ -19,6 +20,7 @@ class voterFile(object):
         countVotersByStatusAndParty:    return number of voters by status and party
         printSimpleSummary:             print summary of counts of simple voter categories
         makeElectionList:               return list of vote history for an election using only eligible voters
+        calculateCorrelation:           calculate and print correlation between voting behavior in two elections
     """
     
     # Members
@@ -38,7 +40,16 @@ class voterFile(object):
         self.nActive_G = self.countVotersByStatusAndParty(status='A', party='G')
         self.nActive_U = self.countVotersByStatusAndParty(status='A', party='U')
 
-        dummy = self.makeElectionList('registered2016P', 'G_112016')
+    def calculateCorrelation(self, registered, election1, election2, title):
+        """ function to calculate and print correlation between voting behavior in two elections"""
+
+        voted1 = self.makeElectionList(registered, election1)
+        voted2 = self.makeElectionList(registered, election2)
+
+        array1 = np.array(voted1)
+        array2 = np.array(voted2)
+        corr, pvalue = pearsonr(array1, array2)
+        print title, ', correlation =', corr, ', p-value =', pvalue
         
     def makeElectionList(self, registered, election):
         """ function to return list of vote history for an election using only eligible voters"""
@@ -46,11 +57,12 @@ class voterFile(object):
         electionList = []
         for voter in self.voters:
             if getattr(voter, registered) and getattr(voter, election):
-                electionList.append(True)
-                temp = True
+                #electionList.append(True)
+                electionList.append(1)
             elif getattr(voter, registered) and not getattr(voter, election):
-                electionList.append(False)
-                temp = False
+                #electionList.append(False)
+                electionList.append(-1)
+            
             #elif not getattr(voter, registered): ### only for debugging!!!
             #    electionList.append('X')
             #    temp = 'X'
@@ -84,7 +96,7 @@ class voterFile(object):
         print 'Number of active voters on file (Democrat):\t', self.nActive_D,'\t({0:.1f}% of active voters)'.format(100*self.nActive_D/float(self.nActive))
         print 'Number of active voters on file (Republican):\t', self.nActive_R,'\t({0:.1f}% of active voters)'.format(100*self.nActive_R/float(self.nActive))
         print 'Number of active voters on file (Unaffiliated):\t', self.nActive_U,'\t({0:.1f}% of active voters)'.format(100*self.nActive_U/float(self.nActive))
-        print '================================================================================='
+        print '=================================================================================\n\n'
 
 
 ####################################  Class for parsing voter list  ####################################
