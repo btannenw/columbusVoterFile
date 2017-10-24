@@ -26,6 +26,7 @@ class voterFile(object):
         makeElectionList:               return list of vote history for an election using only eligible voters
         calculateCorrelation:           calculate and print correlation between voting behavior in two elections
         doLinearRegression:             perform linear correlation between elections
+        validateFit:                     create plot showing comparison between prediction from fit (should come from different sample) and observed behavior
     """
     
     # Members
@@ -46,6 +47,36 @@ class voterFile(object):
         self.nActive_U = self.countVotersByStatusAndParty(status='A', party='U')
 
 
+    def validateFit(self, registered, elections, fitParams, residual, party = [], activeOnly=True):
+        """ create plot showing comparison between prediction from fit (should come from different sample) and observed behavior"""
+
+        for i, election in enumerate(elections):
+            temp = self.makeElectionList(registered, election, activeOnly, party)
+            if i == 0:
+                electionArray = np.array( [temp])
+            elif i != len(elections)-1:
+                electionArray = np.vstack([electionArray, temp])
+            else:
+                finalElection = np.array( temp )
+
+        #print electionArray.shape, finalElection.shape, fitParams.shape
+        fit = np.matmul(electionArray.T, fitParams)
+        #print fit, electionArray.T[0], fitParams, finalElection[0]
+        nCorrectBySign, nIncorrectBySign = 0, 0
+        for j, vote in enumerate(finalElection):
+            if vote*fit[j] > 0:
+                nCorrectBySign = nCorrectBySign + 1
+            if vote*fit[j] < 0:
+                nIncorrectBySign = nIncorrectBySign + 1
+
+        print 'nCorrectBySign: {0} ({1:.2f}%)\tnIncorrectBySign {2} ({3:.2f}%)'.format(nCorrectBySign, 100*float(nCorrectBySign)/float(len(fit)), nIncorrectBySign, 100*float(nIncorrectBySign)/float(len(fit)) )
+        #fig = plt.figure( title.replace(' ','')+'_validation')
+        #plt.title(title.replace(' ','')+'_validation', fontsize=18, fontweight='bold')
+        #plt.plot(voted1, voted2, "o")
+        #graph = fig.add_subplot(111)
+        #indiv, = graph.scatter(array1,array2)
+        #plt.show()
+        
     def doLinearRegression(self, registered, elections, party=[], activeOnly=True):
         """ return linear correlation between elections"""
 
@@ -70,6 +101,10 @@ class voterFile(object):
         r2 = 1 - residuals / sum((finalElection - finalElection.mean())**2) 
         
         print w, elections, residuals, rank, s, r2, party
+
+        self.validateFit(registered, elections, w, residuals, party, activeOnly)
+        
+        return w, residuals
                 
     def printSomeCorrelations(self):
         """dummy to hold correlations. NOTE: Unaffiliated voters almost never vote, and including them makes correlation calculation undersampled"""
@@ -106,12 +141,6 @@ class voterFile(object):
         corr, pvalue = pearsonr(array1, array2)
         print title, ', correlation =', corr, ', p-value =', pvalue, len(array1), len(array2)
 
-        #fig = plt.figure( title.replace(' ','')+'_correlation')
-        #plt.title(title.replace(' ','')+'_correlation', fontsize=18, fontweight='bold')
-        #plt.plot(voted1, voted2, "o")
-        #graph = fig.add_subplot(111)
-        #indiv, = graph.scatter(array1,array2)
-        #plt.show()
         voteCount = [0,0,0,0]
         for i, vote in enumerate(voted1):
             if vote == 1 and voted2[i] == 1:
