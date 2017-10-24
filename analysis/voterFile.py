@@ -2,8 +2,12 @@
 ### Date: Oct 19, 2017
 ### Purpose: class to provide human-readable functions to parse each voter in the JSON'ed voter file AND class to hold dictionary of parsed voters
 
-import numpy as np
+import numpy as np, matplotlib.pyplot as plt
+from scipy import stats
 from scipy.stats.stats import pearsonr
+
+from numpy import arange,array,ones,linalg
+from pylab import plot,show
 
 class voterFile(object):
     """A class for parsing voter file information.
@@ -21,6 +25,7 @@ class voterFile(object):
         printSimpleSummary:             print summary of counts of simple voter categories
         makeElectionList:               return list of vote history for an election using only eligible voters
         calculateCorrelation:           calculate and print correlation between voting behavior in two elections
+        doLinearRegression:             perform linear correlation between elections
     """
     
     # Members
@@ -40,6 +45,56 @@ class voterFile(object):
         self.nActive_G = self.countVotersByStatusAndParty(status='A', party='G')
         self.nActive_U = self.countVotersByStatusAndParty(status='A', party='U')
 
+
+    def doLinearRegression(self, registered, elections, party=[], activeOnly=True):
+        """ return linear correlation between elections"""
+
+        for i, election in enumerate(elections):
+            temp = self.makeElectionList(registered, election, activeOnly, party)
+            if i == 0:
+                electionArray = np.array( [temp])
+            elif i != len(elections)-1:
+                electionArray = np.vstack([electionArray, temp])
+            else:
+                finalElection = np.array( temp )
+        
+        #print electionArray
+        #print electionArray.shape, finalElection.shape
+
+        # ***  A. scipy works for two variables
+        #slope, intercept, r_value, p_value, std_err = stats.linregress(electionArray, finalElection)
+        #print 'r-squared:', r_value**2, 'slope:', slope, 'intercept', intercept
+        # ***  B. numpy works for n variables
+        #w = linalg.lstsq(electionArray.T,finalElection)[0] # obtaining the parameters
+        w, residuals, rank, s = linalg.lstsq(electionArray.T,finalElection) # obtaining the parameters
+        r2 = 1 - residuals / sum((finalElection - finalElection.mean())**2) 
+        
+        print w, elections, residuals, rank, s, r2, party
+                
+    def printSomeCorrelations(self):
+        """dummy to hold correlations. NOTE: Unaffiliated voters almost never vote, and including them makes correlation calculation undersampled"""
+        #vFile1.calculateCorrelation('registered2016P', 'P_032016', 'G_112016', 'Testing 2016 Primary vs 2016 General')
+        #vFile1.calculateCorrelation('registered2015G', 'G_112015', 'G_112016', 'Testing 2015 General vs 2016 General')
+        #vFile1.calculateCorrelation('registered2015G', 'G_112015', 'P_032016', 'Testing 2015 General vs 2016 Primary')
+        #vFile1.calculateCorrelation('registered2015P', 'G_112015', 'P_032016', 'Testing 2015 General vs 2016 Primary')
+        #vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112016', 'Testing 2012 Primary vs 2016 General')
+        #vFile1.calculateCorrelation('registered2012G', 'G_112012', 'G_112016', 'Testing 2012 Primary vs 2016 General')
+        #vFile1.calculateCorrelation('registered2015P', 'P_052015', 'G_112015', 'Testing 2015 Primary vs 2015 General')
+        #vFile1.calculateCorrelation('registered2014P', 'P_052014', 'G_112014', 'Testing 2014 Primary vs 2014 General')
+        #vFile1.calculateCorrelation('registered2013P', 'P_052013', 'G_112013', 'Testing 2013 Primary vs 2013 General')
+        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General')
+        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (R)',party='R')
+        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (U)',party='U')
+        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (D)',party='D')
+        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (D, R)',party=['D','R'])
+        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (D, U)',party=['D','U'])
+        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (U, R)',party=['R','U'])
+        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (D, R, U)',party=['D','R', 'U'])
+        #vFile1.calculateCorrelation('registered2011P', 'P_052011', 'G_112011', 'Testing 2011 Primary vs 2011 General')
+        #vFile1.calculateCorrelation('registered2010P', 'P_052010', 'G_112010', 'Testing 2010 Primary vs 2010 General')
+        #vFile1.calculateCorrelation('registered2009P', 'P_052009', 'G_112009', 'Testing 2009 Primary vs 2009 General')
+        #vFile1.calculateCorrelation('registered2008P', 'P_032008', 'G_112008', 'Testing 2008 Primary vs 2008 General')
+
     def calculateCorrelation(self, registered, election1, election2, title, activeOnly=True, party=[]):
         """ function to calculate and print correlation between voting behavior in two elections"""
 
@@ -49,15 +104,34 @@ class voterFile(object):
         array1 = np.array(voted1)
         array2 = np.array(voted2)
         corr, pvalue = pearsonr(array1, array2)
-        print title, ', correlation =', corr, ', p-value =', pvalue
-        
+        print title, ', correlation =', corr, ', p-value =', pvalue, len(array1), len(array2)
+
+        #fig = plt.figure( title.replace(' ','')+'_correlation')
+        #plt.title(title.replace(' ','')+'_correlation', fontsize=18, fontweight='bold')
+        #plt.plot(voted1, voted2, "o")
+        #graph = fig.add_subplot(111)
+        #indiv, = graph.scatter(array1,array2)
+        #plt.show()
+        voteCount = [0,0,0,0]
+        for i, vote in enumerate(voted1):
+            if vote == 1 and voted2[i] == 1:
+                voteCount[0] = voteCount[0]+1
+            elif vote == 1 and voted2[i] == -1:
+                voteCount[1] = voteCount[1]+1
+            elif vote == -1 and voted2[i] == 1:
+                voteCount[2] = voteCount[2]+1
+            elif vote == -1 and voted2[i] == -1:
+                voteCount[3] = voteCount[3]+1
+        #print voteCount, '{0:.2f}% vote neither'.format(100*float(voteCount[3])/float(len(voted1)))
+
+
     def makeElectionList(self, registered, election, activeOnly, party):
         """ function to return list of vote history for an election using only eligible voters"""
 
         electionList = []
         for voter in self.voters:
             activeStatus = True if voter.status=='A' or not activeOnly else False
-            if party is str: # make party list if single string
+            if type(party) is str: # make party list if single string
                 party = [party]
             partyFilter  = True if len(party)==0 or (len(party)>0 and voter.party in party) else False 
             
@@ -67,7 +141,10 @@ class voterFile(object):
             elif getattr(voter, registered) and not getattr(voter, election) and activeStatus and partyFilter:
                 #electionList.append(False)
                 electionList.append(-1)
-            
+
+            #if voter.party == 'U' and activeStatus and partyFilter:
+            #    print voter.name, voter.status, voter.party, getattr(voter, registered), getattr(voter, election), election
+        
             #elif not getattr(voter, registered): ### only for debugging!!!
             #    electionList.append('X')
             #    temp = 'X'
