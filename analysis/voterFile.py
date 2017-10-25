@@ -26,7 +26,8 @@ class voterFile(object):
         makeElectionList:               return list of vote history for an election using only eligible voters
         calculateCorrelation:           calculate and print correlation between voting behavior in two elections
         doLinearRegression:             perform linear correlation between elections
-        validateFit:                     create plot showing comparison between prediction from fit (should come from different sample) and observed behavior
+        validateFit:                    create plot showing comparison between prediction from fit (should come from different sample) and observed behavior
+        makeCorrelationPlot:            show and save histogram of correlation values between elections
     """
     
     # Members
@@ -46,12 +47,31 @@ class voterFile(object):
         self.nActive_G = self.countVotersByStatusAndParty(status='A', party='G')
         self.nActive_U = self.countVotersByStatusAndParty(status='A', party='U')
 
+    def makeCorrelationPlots(self, registered, elections, title, party=[], activeOnly=True, nTimesVoted=0):
+        """ show and save histogram of correlation values between elections """
 
-    def validateFit(self, registered, elections, fitParams, residual, party = [], activeOnly=True):
+        correlations = []
+        #if type(party) is str: # make party list if single string
+        #    party = [party]
+        #print party
+        for i, election in enumerate(elections):
+            if i != len(elections)-1:
+                correlations.append( self.calculateCorrelation(registered, election, elections[len(elections)-1], '{0}_{1}'.format(election, title), activeOnly, party, nTimesVoted) )
+
+        fig = plt.figure( title )
+        n, bins, patches = plt.hist(correlations, bins=40, range=(-1,1))
+        plt.title(title, fontsize=18, fontweight='bold')
+        plt.ylabel("Entries / Bin", fontsize=18)
+        plt.ylim(0, max(n)*1.2)
+        plt.xlabel("Correlation", fontsize=15)
+        plt.savefig( '../figures/correlationsWith_{0}.png'.format(title))
+        plt.savefig( '../figures/correlationsWith_{0}.pdf'.format(title))
+
+    def validateFit(self, registered, elections, fitParams, residual, party = [], activeOnly=True, nTimesVoted=0):
         """ create plot showing comparison between prediction from fit (should come from different sample) and observed behavior"""
 
         for i, election in enumerate(elections):
-            temp = self.makeElectionList(registered, election, activeOnly, party)
+            temp = self.makeElectionList(registered, election, activeOnly, party, nTimesVoted)
             if i == 0:
                 electionArray = np.array( [temp])
             elif i != len(elections)-1:
@@ -62,14 +82,22 @@ class voterFile(object):
         #print electionArray.shape, finalElection.shape, fitParams.shape
         fit = np.matmul(electionArray.T, fitParams)
         #print fit, electionArray.T[0], fitParams, finalElection[0]
-        nCorrectBySign, nIncorrectBySign = 0, 0
+        nCorrectBySign, nIncorrectBySign, nCorrectBySign_voted, nCorrectBySign_didNotVote, nVoted, nDidNotVote = 0, 0, 0, 0, 0, 0
         for j, vote in enumerate(finalElection):
             if vote*fit[j] > 0:
                 nCorrectBySign = nCorrectBySign + 1
-            if vote*fit[j] < 0:
+                if vote > 0:
+                    nCorrectBySign_voted = nCorrectBySign_voted + 1
+                else:
+                    nCorrectBySign_didNotVote = nCorrectBySign_didNotVote + 1
+            elif vote*fit[j] < 0:
                 nIncorrectBySign = nIncorrectBySign + 1
 
-        print 'nCorrectBySign: {0} ({1:.2f}%)\tnIncorrectBySign {2} ({3:.2f}%)'.format(nCorrectBySign, 100*float(nCorrectBySign)/float(len(fit)), nIncorrectBySign, 100*float(nIncorrectBySign)/float(len(fit)) )
+            if vote > 0:
+                nVoted = nVoted+1
+            else:
+                nDidNotVote = nDidNotVote+1
+        print 'nCorrectBySign: {0} ({1:.2f}%, {2:.2f}% of voters, {3:.2f}% of non-voters)\tnIncorrectBySign {4} ({5:.2f}%)'.format(nCorrectBySign, 100*float(nCorrectBySign)/float(len(fit)), 100*float(nCorrectBySign_voted)/float(nVoted), 100*float(nCorrectBySign_didNotVote)/float(nDidNotVote), nIncorrectBySign, 100*float(nIncorrectBySign)/float(len(fit)) )
         #fig = plt.figure( title.replace(' ','')+'_validation')
         #plt.title(title.replace(' ','')+'_validation', fontsize=18, fontweight='bold')
         #plt.plot(voted1, voted2, "o")
@@ -77,11 +105,11 @@ class voterFile(object):
         #indiv, = graph.scatter(array1,array2)
         #plt.show()
         
-    def doLinearRegression(self, registered, elections, party=[], activeOnly=True):
-        """ return linear correlation between elections"""
+    def doLinearRegression(self, registered, elections, party=[], activeOnly=True, nTimesVoted=0):
+        """ return linear regression between elections"""
 
         for i, election in enumerate(elections):
-            temp = self.makeElectionList(registered, election, activeOnly, party)
+            temp = self.makeElectionList(registered, election, activeOnly, party, nTimesVoted)
             if i == 0:
                 electionArray = np.array( [temp])
             elif i != len(elections)-1:
@@ -102,39 +130,39 @@ class voterFile(object):
         
         print w, elections, residuals, rank, s, r2, party
 
-        self.validateFit(registered, elections, w, residuals, party, activeOnly)
+        self.validateFit(registered, elections, w, residuals, party, activeOnly, nTimesVoted)
         
         return w, residuals
                 
     def printSomeCorrelations(self):
         """dummy to hold correlations. NOTE: Unaffiliated voters almost never vote, and including them makes correlation calculation undersampled"""
-        #vFile1.calculateCorrelation('registered2016P', 'P_032016', 'G_112016', 'Testing 2016 Primary vs 2016 General')
-        #vFile1.calculateCorrelation('registered2015G', 'G_112015', 'G_112016', 'Testing 2015 General vs 2016 General')
-        #vFile1.calculateCorrelation('registered2015G', 'G_112015', 'P_032016', 'Testing 2015 General vs 2016 Primary')
-        #vFile1.calculateCorrelation('registered2015P', 'G_112015', 'P_032016', 'Testing 2015 General vs 2016 Primary')
-        #vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112016', 'Testing 2012 Primary vs 2016 General')
-        #vFile1.calculateCorrelation('registered2012G', 'G_112012', 'G_112016', 'Testing 2012 Primary vs 2016 General')
-        #vFile1.calculateCorrelation('registered2015P', 'P_052015', 'G_112015', 'Testing 2015 Primary vs 2015 General')
-        #vFile1.calculateCorrelation('registered2014P', 'P_052014', 'G_112014', 'Testing 2014 Primary vs 2014 General')
-        #vFile1.calculateCorrelation('registered2013P', 'P_052013', 'G_112013', 'Testing 2013 Primary vs 2013 General')
-        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General')
-        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (R)',party='R')
-        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (U)',party='U')
-        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (D)',party='D')
-        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (D, R)',party=['D','R'])
-        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (D, U)',party=['D','U'])
-        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (U, R)',party=['R','U'])
-        vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (D, R, U)',party=['D','R', 'U'])
-        #vFile1.calculateCorrelation('registered2011P', 'P_052011', 'G_112011', 'Testing 2011 Primary vs 2011 General')
-        #vFile1.calculateCorrelation('registered2010P', 'P_052010', 'G_112010', 'Testing 2010 Primary vs 2010 General')
-        #vFile1.calculateCorrelation('registered2009P', 'P_052009', 'G_112009', 'Testing 2009 Primary vs 2009 General')
-        #vFile1.calculateCorrelation('registered2008P', 'P_032008', 'G_112008', 'Testing 2008 Primary vs 2008 General')
+        #self.calculateCorrelation('registered2016P', 'P_032016', 'G_112016', 'Testing 2016 Primary vs 2016 General')
+        #self.calculateCorrelation('registered2015G', 'G_112015', 'G_112016', 'Testing 2015 General vs 2016 General')
+        #self.calculateCorrelation('registered2015G', 'G_112015', 'P_032016', 'Testing 2015 General vs 2016 Primary')
+        #self.calculateCorrelation('registered2015P', 'G_112015', 'P_032016', 'Testing 2015 General vs 2016 Primary')
+        #self.calculateCorrelation('registered2012P', 'P_032012', 'G_112016', 'Testing 2012 Primary vs 2016 General')
+        #self.calculateCorrelation('registered2012G', 'G_112012', 'G_112016', 'Testing 2012 Primary vs 2016 General')
+        #self.calculateCorrelation('registered2015P', 'P_052015', 'G_112015', 'Testing 2015 Primary vs 2015 General')
+        #self.calculateCorrelation('registered2014P', 'P_052014', 'G_112014', 'Testing 2014 Primary vs 2014 General')
+        #self.calculateCorrelation('registered2013P', 'P_052013', 'G_112013', 'Testing 2013 Primary vs 2013 General')
+        self.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General')
+        self.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (R)',party='R')
+        self.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (U)',party='U')
+        self.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (D)',party='D')
+        self.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (D, R)',party=['D','R'])
+        self.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (D, U)',party=['D','U'])
+        self.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (U, R)',party=['R','U'])
+        self.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (D, R, U)',party=['D','R', 'U'])
+        #self.calculateCorrelation('registered2011P', 'P_052011', 'G_112011', 'Testing 2011 Primary vs 2011 General')
+        #self.calculateCorrelation('registered2010P', 'P_052010', 'G_112010', 'Testing 2010 Primary vs 2010 General')
+        #self.calculateCorrelation('registered2009P', 'P_052009', 'G_112009', 'Testing 2009 Primary vs 2009 General')
+        #self.calculateCorrelation('registered2008P', 'P_032008', 'G_112008', 'Testing 2008 Primary vs 2008 General')
 
-    def calculateCorrelation(self, registered, election1, election2, title, activeOnly=True, party=[]):
+    def calculateCorrelation(self, registered, election1, election2, title, activeOnly=True, party=[], nTimesVoted=0):
         """ function to calculate and print correlation between voting behavior in two elections"""
 
-        voted1 = self.makeElectionList(registered, election1, activeOnly, party)
-        voted2 = self.makeElectionList(registered, election2, activeOnly, party)
+        voted1 = self.makeElectionList(registered, election1, activeOnly, party, nTimesVoted)
+        voted2 = self.makeElectionList(registered, election2, activeOnly, party, nTimesVoted)
 
         array1 = np.array(voted1)
         array2 = np.array(voted2)
@@ -153,8 +181,9 @@ class voterFile(object):
                 voteCount[3] = voteCount[3]+1
         #print voteCount, '{0:.2f}% vote neither'.format(100*float(voteCount[3])/float(len(voted1)))
 
-
-    def makeElectionList(self, registered, election, activeOnly, party):
+        return corr
+    
+    def makeElectionList(self, registered, election, activeOnly, party, nTimesVoted):
         """ function to return list of vote history for an election using only eligible voters"""
 
         electionList = []
@@ -164,10 +193,10 @@ class voterFile(object):
                 party = [party]
             partyFilter  = True if len(party)==0 or (len(party)>0 and voter.party in party) else False 
             
-            if getattr(voter, registered) and getattr(voter, election) and activeStatus and partyFilter:
+            if getattr(voter, registered) and getattr(voter, election) and activeStatus and partyFilter and voter.hasVoted(nTimesVoted):
                 #electionList.append(True)
                 electionList.append(1)
-            elif getattr(voter, registered) and not getattr(voter, election) and activeStatus and partyFilter:
+            elif getattr(voter, registered) and not getattr(voter, election) and activeStatus and partyFilter and voter.hasVoted(nTimesVoted):
                 #electionList.append(False)
                 electionList.append(-1)
 
@@ -232,6 +261,7 @@ class voterParser(object):
 
         P_052017:          true if voter voted in May 2017 primary
         X_MMYYYY:          true if voter voted in X (P=primary, G= general, S=special, L=local?) election in month MM in year YYYY
+        hasVoted:         true if voter has ever voted. Takes argument (default=0) that can ask for a specific number of votes, e.g. has voted at least 3 times
 
         registered2008P:    true if voter registered before primary month in 2008
         registered2008G:    true if voter registered before general month in 2008
@@ -303,7 +333,7 @@ class voterParser(object):
 
         monthRegistered = int(self.registrationDate.split('/')[0])
         yearRegistered= int(self.registrationDate.split('/')[2].split(' ')[0])
-
+        
         self.registered2017G = True if (yearRegistered == 2017 and monthRegistered <= 11) or yearRegistered < 2017 else False
         self.registered2017P = True if (yearRegistered == 2017 and monthRegistered <= 5) or yearRegistered < 2017 else False
         self.registered2016G = True if (yearRegistered == 2016 and monthRegistered <= 11) or yearRegistered < 2016 else False
@@ -324,4 +354,58 @@ class voterParser(object):
         self.registered2009P = True if (yearRegistered <= 2009 and monthRegistered <= 5) or yearRegistered < 2009 else False
         self.registered2008G = True if (yearRegistered <= 2008 and monthRegistered <= 11) or yearRegistered < 2008 else False
         self.registered2008P = True if (yearRegistered <= 2008 and monthRegistered <= 3) or yearRegistered < 2008 else False
+
         
+    def hasVoted(self, n=0):
+        """ function that returns true/false on whether a voter has voted at least n times"""
+
+        nVotes = 0
+        if self.P_052017:
+            nVotes = nVotes + 1
+        if self.G_112016:
+            nVotes = nVotes + 1
+        if self.S_082016:
+            nVotes = nVotes + 1
+        if self.P_032016:
+            nVotes = nVotes + 1
+        if self.G_112015:
+            nVotes = nVotes + 1
+        if self.P_052015:
+            nVotes = nVotes + 1
+        if self.G_112014:
+            nVotes = nVotes + 1
+        if self.P_052014:
+            nVotes = nVotes + 1
+        if self.G_112013:
+            nVotes = nVotes + 1
+        if self.P_052013:
+            nVotes = nVotes + 1
+        if self.G_112012:
+            nVotes = nVotes + 1
+        if self.P_032012:
+            nVotes = nVotes + 1
+        if self.G_112011:
+            nVotes = nVotes + 1
+        if self.L_082011:
+            nVotes = nVotes + 1
+        if self.P_052011:
+            nVotes = nVotes + 1
+        if self.G_112010:
+            nVotes = nVotes + 1
+        if self.P_052010:
+            nVotes = nVotes + 1
+        if self.G_112009:
+            nVotes = nVotes + 1
+        if self.P_082009:
+            nVotes = nVotes + 1
+        if self.P_052009:
+            nVotes = nVotes + 1
+        if self.G_112008:
+            nVotes = nVotes + 1
+        if self.P_032008:
+            nVotes = nVotes + 1
+
+        if nVotes >= n:
+            return True
+        else:
+            return False

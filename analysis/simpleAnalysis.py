@@ -2,7 +2,7 @@
 ### Date: Oct 19, 2017
 ### Purpose: script for analyzing voter file, e.g. calculate correlations, do linear regressions, etc
 
-import json
+import json, matplotlib.pyplot as plt
 from voterFile import voterFile, voterParser
 
 
@@ -20,22 +20,32 @@ vFile1.printSimpleSummary()
 # 2. ***  Calculate some correlations  ***
 #vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112013', 'Testing 2012 Primary vs 2012 General')
 #vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112013', 'Testing 2012 Primary vs 2012 General (R)',party='R')
-#vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112013', 'Testing 2012 Primary vs 2012 General (U)',party='U')
-#vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112013', 'Testing 2012 Primary vs 2012 General (D)',party='D')
 #vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112013', 'Testing 2012 Primary vs 2012 General (D, R)',party=['D','R'])
-vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112014', 'Testing 2012 Primary vs 2014 General (R)',party='R')
-vFile1.calculateCorrelation('registered2012P', 'G_112013', 'G_112014', 'Testing 2013 General vs 2014 General (R)',party='R')
-vFile1.calculateCorrelation('registered2012P', 'P_052014', 'G_112014', 'Testing 2014 Primary vs 2014 General (R)',party='R')
+#vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (U)',party='U',nTimesVoted=1)
+#vFile1.makeCorrelationPlots('registered2012P', ['P_032012', 'G_112012'], 'G2012_R', party = 'R')
+#vFile1.makeCorrelationPlots('registered2012P', ['P_032012', 'G_112012', 'P_052013', 'G_112013', 'P_052014', 'G_112014'], 'G2014_R', party = 'R')
+#vFile1.makeCorrelationPlots('registered2012P', ['P_032012', 'G_112012', 'P_052013', 'G_112013', 'P_052014', 'G_112014', 'P_052015', 'G_112015'], 'G2015_R', party = 'R')
+#vFile1.makeCorrelationPlots('registered2012P', ['P_032012', 'G_112012', 'P_052013', 'G_112013', 'P_052014', 'G_112014', 'P_052015', 'G_112015', 'P_032016', 'G_112016'], 'G2016_R', party = 'R')
+#vFile1.makeCorrelationPlots('registered2012P', ['P_032012', 'G_112012', 'P_052013', 'G_112013', 'P_052014', 'G_112014', 'P_052015', 'G_112015', 'P_032016', 'G_112016', 'P_052017'], 'P2017_R', party = 'R')
 
 # 3. ***  Perform linear regressions  ***
-vFile1.doLinearRegression(registered='registered2012P', elections=['P_032012', 'G_112013', 'P_052014', 'G_112014'], party='R')
-vFile1.doLinearRegression(registered='registered2012P', elections=['P_032012', 'P_052014', 'G_112014'], party='R')
-vFile1.doLinearRegression(registered='registered2012P', elections=['G_112013', 'P_052014', 'G_112014'], party='R')
-vFile1.doLinearRegression(registered='registered2012P', elections=['G_112013', 'G_112014'], party='R')
-vFile1.doLinearRegression(registered='registered2012P', elections=['G_112013', 'G_112014'], party='U')
-w, resid = vFile1.doLinearRegression(registered='registered2012P', elections=['G_112013', 'G_112014'])
+vFile1.doLinearRegression(registered='registered2012P', elections=['P_032012', 'G_112013', 'P_052014', 'G_112014'])
+vFile1.doLinearRegression(registered='registered2012P', elections=['P_032012', 'G_112013', 'P_052014', 'G_112014'], party = 'R')
+vFile1.doLinearRegression(registered='registered2012P', elections=['P_032012', 'G_112013', 'P_052014', 'G_112014'], party = 'D')
+#vFile1.doLinearRegression(registered='registered2012P', elections=['P_032012', 'P_052014', 'G_112014'], party='R')
+#vFile1.doLinearRegression(registered='registered2012P', elections=['G_112013', 'P_052014', 'G_112014'], party='R')
+vFile1.doLinearRegression(registered='registered2013G', elections=['G_112013', 'G_112014'], party='R')
+vFile1.doLinearRegression(registered='registered2014P', elections=['P_052014', 'G_112014'], party='R')
+vFile1.doLinearRegression(registered='registered2013G', elections=['G_112013', 'P_052014', 'G_112014'], party='R')
+vFile1.doLinearRegression(registered='registered2013G', elections=['G_112013', 'G_112014'], party='D')
+vFile1.doLinearRegression(registered='registered2014P', elections=['P_052014', 'G_112014'], party='D')
+vFile1.doLinearRegression(registered='registered2013G', elections=['G_112013', 'P_052014', 'G_112014'], party='D')
+
+#vFile1.doLinearRegression(registered='registered2012P', elections=['G_112013', 'G_112014'], party='U', nTimesVoted=1)
+#w, resid = vFile1.doLinearRegression(registered='registered2012P', elections=['G_112013', 'G_112014'])
 
 # 4. ***  Compare prediction to reality using second subsample  ***
-vFile2.validateFit( registered='registered2012P', elections=['G_112013', 'G_112014'], fitParams=w, residual=resid, party='R' )
-vFile2.validateFit( registered='registered2012P', elections=['G_112013', 'G_112014'], fitParams=w, residual=resid )
+#vFile2.validateFit( registered='registered2012P', elections=['G_112013', 'G_112014'], fitParams=w, residual=resid, party='R' )
+#vFile2.validateFit( registered='registered2012P', elections=['G_112013', 'G_112014'], fitParams=w, residual=resid )
 
+plt.show()
