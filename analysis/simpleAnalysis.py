@@ -42,10 +42,13 @@ vFile1.doLinearRegression(registered='registered2014P', elections=['P_052014', '
 vFile1.doLinearRegression(registered='registered2013G', elections=['G_112013', 'P_052014', 'G_112014'], party='D')
 
 #vFile1.doLinearRegression(registered='registered2012P', elections=['G_112013', 'G_112014'], party='U', nTimesVoted=1)
-#w, resid = vFile1.doLinearRegression(registered='registered2012P', elections=['G_112013', 'G_112014'])
+w, resid = vFile1.doLinearRegression(registered='registered2012P', elections=['G_112013', 'G_112014'])
 
 # 4. ***  Compare prediction to reality using second subsample  ***
 #vFile2.validateFit( registered='registered2012P', elections=['G_112013', 'G_112014'], fitParams=w, residual=resid, party='R' )
-#vFile2.validateFit( registered='registered2012P', elections=['G_112013', 'G_112014'], fitParams=w, residual=resid )
+prediction = vFile2.validateFit( registered='registered2012P', elections=['G_112013', 'G_112014'], fitParams=w, residual=resid )
+
+# 5. ***  Dump .txt file printing out # likely voters in analyzed precincts  ***
+vFile2.dumpLikelyVotersByPrecinct(prediction, 'subsample2', registered='registered2012P', election='G_112014')
 
 plt.show()

@@ -2,7 +2,7 @@
 ### Date: Oct 19, 2017
 ### Purpose: class to provide human-readable functions to parse each voter in the JSON'ed voter file AND class to hold dictionary of parsed voters
 
-import numpy as np, matplotlib.pyplot as plt
+import numpy as np, matplotlib.pyplot as plt, operator
 from scipy import stats
 from scipy.stats.stats import pearsonr
 
@@ -24,16 +24,20 @@ class voterFile(object):
         countVotersByStatusAndParty:    return number of voters by status and party
         printSimpleSummary:             print summary of counts of simple voter categories
         makeElectionList:               return list of vote history for an election using only eligible voters
+        makePrecinctList:               return list of precincts of voters for an election using only eligible voters (wrapper for makeElectionList)
         calculateCorrelation:           calculate and print correlation between voting behavior in two elections
         doLinearRegression:             perform linear correlation between elections
         validateFit:                    create plot showing comparison between prediction from fit (should come from different sample) and observed behavior
         makeCorrelationPlot:            show and save histogram of correlation values between elections
+        dumpLikelyVotersByPrecinct:      dump text file of likely voters by precinct
     """
     
     # Members
 
     # Functions
     def __init__(self, infile):
+        print " .... creating voter file ...."
+
         self.voters = []
         for line in infile:
             voter = voterParser(line)
@@ -104,7 +108,37 @@ class voterFile(object):
         #graph = fig.add_subplot(111)
         #indiv, = graph.scatter(array1,array2)
         #plt.show()
-        
+
+        return fit
+
+    def dumpLikelyVotersByPrecinct(self, prediction, title, registered, election, activeOnly=True, party=[], nTimesVoted=0):
+        """ dump .txt file with likely voters split into precincts"""
+
+        print " .... Printing table ...."
+        precinctList = self.makePrecinctList(registered, election, activeOnly, party, nTimesVoted)
+        byPrecinct = {} # form for dict entries is 'precinct': [# likely voters, # likely non-voters]
+
+        for i, voter in enumerate(precinctList):
+            if voter not in byPrecinct: # new precinct
+                if prediction[i] < 0:
+                    byPrecinct[voter] = [0, 1]
+                elif prediction[i] > 0:
+                    byPrecinct[voter] = [1, 0]
+            else:
+                if prediction[i] < 0:
+                    byPrecinct[voter][1] = byPrecinct[voter][1] + 1
+                elif prediction[i] > 0:
+                    byPrecinct[voter][0] = byPrecinct[voter][0] + 1
+
+        byPrecinct_ordered = sorted(byPrecinct.items(), key=operator.itemgetter(1), reverse=True)
+        outfile = open('../tables/'+title.replace(' ','')+'_likelyVotesrByPrecinct.txt', 'w')
+        outfile.write('{0: <48} \t\t ${1: <20} \t\t {2: <10} \n'.format('Precinct', '# Likely Voters', '# Unlikely Voters') )
+        outfile.write('==============================================================================================================\n')
+        for precinct in byPrecinct_ordered:
+            outfile.write('{0: <48} \t\t {1: <20} \t\t {2: <10} \n'.format(precinct[0], byPrecinct[precinct[0]][0],str(byPrecinct[precinct[0]][1])))
+
+        return
+    
     def doLinearRegression(self, registered, elections, party=[], activeOnly=True, nTimesVoted=0):
         """ return linear regression between elections"""
 
@@ -183,7 +217,7 @@ class voterFile(object):
 
         return corr
     
-    def makeElectionList(self, registered, election, activeOnly, party, nTimesVoted):
+    def makeElectionList(self, registered, election, activeOnly, party, nTimesVoted, doElection=True):
         """ function to return list of vote history for an election using only eligible voters"""
 
         electionList = []
@@ -194,11 +228,15 @@ class voterFile(object):
             partyFilter  = True if len(party)==0 or (len(party)>0 and voter.party in party) else False 
             
             if getattr(voter, registered) and getattr(voter, election) and activeStatus and partyFilter and voter.hasVoted(nTimesVoted):
-                #electionList.append(True)
-                electionList.append(1)
+                if doElection:
+                    electionList.append(1)
+                else:
+                    electionList.append(voter.precinct)
             elif getattr(voter, registered) and not getattr(voter, election) and activeStatus and partyFilter and voter.hasVoted(nTimesVoted):
-                #electionList.append(False)
-                electionList.append(-1)
+                if doElection:
+                    electionList.append(-1)
+                else:
+                    electionList.append(voter.precinct)
 
             #if voter.party == 'U' and activeStatus and partyFilter:
             #    print voter.name, voter.status, voter.party, getattr(voter, registered), getattr(voter, election), election
@@ -209,7 +247,14 @@ class voterFile(object):
             #print voter.name, voter.registrationDate, voter.registered2016P, int(voter.registrationDate.split('/')[2].split(' ')[0]), voter.G_112016, temp
             
         return electionList
-    
+
+    def makePrecinctList(self, registered, election, activeOnly, party, nTimesVoted):
+        """ function to return list of precincts for an election using only eligible voters"""
+
+        precinctList = self.makeElectionList(registered, election, activeOnly, party, nTimesVoted, doElection=False)
+
+        return precinctList
+
     def countVotersByStatusAndParty(self, status, party=''):
         """function for returning voters of a specified status (Active/Inactive) and party(U/R/D/L/G)"""
 
@@ -254,7 +299,7 @@ class voterParser(object):
         dob:               date of birth of voter
         street:            street of voter's address
         zipcode:           zipcode of voter
-        precint:           ohio precint of voter
+        precinct:          ohio precinct of voter
         house:             ohio state house district of voter
         senate:            ohio state senate district of voter
         congress:          US congressional district of voter
@@ -304,7 +349,7 @@ class voterParser(object):
         self.dob = voter[9]
         self.street = voter[12] 
         self.zipcode = voter[16]
-        self.precint = voter[17]
+        self.precinct = voter[17]
         self.house = voter[20]
         self.senate = voter[21]
         self.congress = voter[22]
