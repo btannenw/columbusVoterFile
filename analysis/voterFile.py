@@ -68,8 +68,8 @@ class voterFile(object):
         plt.ylabel("Entries / Bin", fontsize=18)
         plt.ylim(0, max(n)*1.2)
         plt.xlabel("Correlation", fontsize=15)
-        plt.savefig( '../figures/correlationsWith_{0}.png'.format(title))
-        plt.savefig( '../figures/correlationsWith_{0}.pdf'.format(title))
+        plt.savefig( '../figures/json/correlationsWith_{0}.png'.format(title))
+        plt.savefig( '../figures/json/correlationsWith_{0}.pdf'.format(title))
 
     def validateFit(self, registered, elections, fitParams, residual, party = [], activeOnly=True, nTimesVoted=0):
         """ create plot showing comparison between prediction from fit (should come from different sample) and observed behavior"""
@@ -131,7 +131,7 @@ class voterFile(object):
                     byPrecinct[voter][0] = byPrecinct[voter][0] + 1
 
         byPrecinct_ordered = sorted(byPrecinct.items(), key=operator.itemgetter(1), reverse=True)
-        outfile = open('../tables/'+title.replace(' ','')+'_likelyVotesrByPrecinct.txt', 'w')
+        outfile = open('../tables/json/'+title.replace(' ','')+'_likelyVotesrByPrecinct.txt', 'w')
         outfile.write('{0: <48} \t\t ${1: <20} \t\t {2: <10} \n'.format('Precinct', '# Likely Voters', '# Unlikely Voters') )
         outfile.write('==============================================================================================================\n')
         for precinct in byPrecinct_ordered:

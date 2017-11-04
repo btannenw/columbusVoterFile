@@ -3,6 +3,17 @@
 # Purpose: Script for analyzing SQL voter file, e.g. calculate correlations, do linear regressions, etc
 
 import sqlite3
+from voterFileSQL import *
 
-connection = sqlite3.connect("voterFile.db")
+# 0. ***  Connect to SQL database
+connection = sqlite3.connect("../sql/voterFile.db")
 cursor = connection.cursor()
+
+
+# 1. ***  Print some simple summaries
+#printSimpleSummary(cursor)
+printSimpleSummary(cursor, subsample='0')
+
+
+# 2. ***  Print some simple summaries
+
