@@ -22,6 +22,9 @@ vFile1.printSimpleSummary()
 
 # 2. ***  Calculate some correlations  ***
 #vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112013', 'Testing 2012 Primary vs 2012 General')
+#vFile1.calculateCorrelation('registered2012P', 'P_052014', 'G_112014', 'Testing 2014 Primary vs 2014 General')
+#vFile2.calculateCorrelation('registered2012P', 'P_052014', 'G_112014', 'Testing 2014 Primary vs 2014 General')
+#vFile3.calculateCorrelation('registered2012P', 'P_052014', 'G_112014', 'Testing 2014 Primary vs 2014 General')
 #vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112013', 'Testing 2012 Primary vs 2012 General (R)',party='R')
 #vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112013', 'Testing 2012 Primary vs 2012 General (D, R)',party=['D','R'])
 #vFile1.calculateCorrelation('registered2012P', 'P_032012', 'G_112012', 'Testing 2012 Primary vs 2012 General (U)',party='U',nTimesVoted=1)
@@ -56,3 +59,4 @@ vFile2.dumpLikelyVotersByPrecinct(prediction, 'subsample2', registered='register
 vFile3.dumpLikelyVotersByPrecinct(prediction, 'subsample3', registered='registered2012P', election='G_112014')
 
 plt.show()
+

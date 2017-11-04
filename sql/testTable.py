@@ -2,8 +2,28 @@
 # Date:    November 4, 2017
 # Purpose: Run simple tests on SQLite DB 
 
-import sqlite3
+import sqlite3, math
 
+class StdevFunc:
+    def __init__(self):
+        self.M = 0.0
+        self.S = 0.0
+        self.k = 1
+
+    def step(self, value):
+        if value is None:
+            return
+        tM = self.M
+        self.M += (value - tM) / self.k
+        self.S += (value - tM) * (value - self.M)
+        self.k += 1
+
+    def finalize(self):
+        if self.k < 3:
+            return None
+        return math.sqrt(self.S / (self.k-2))
+
+    
 def runQuery(db, label, string):
     """Run query using passed string"""
     print "=====   {0}   =====".format(label)
@@ -15,7 +35,9 @@ def runQuery(db, label, string):
     return
 
 
+
 connection = sqlite3.connect("voterFile.db")
+connection.create_aggregate("stdev", 1, StdevFunc)
 cursor = connection.cursor()
 
 """
@@ -47,4 +69,8 @@ runQuery(cursor, 'Voter Behavior in 2015 General If Voted in 2015 Primary', "SEL
 runQuery(cursor, 'Voter Behavior in 2015 Primary If Voted in 2015 General', "SELECT DISTINCT P_052015, COUNT(P_052015) FROM voterFile where STATUS like 'A' and G_112015 not like '' group by P_052015")
 runQuery(cursor, 'Voter Behavior in 2014 General If Voted in 2015 General', "SELECT DISTINCT G_112014, COUNT(G_112014) FROM voterFile where STATUS like 'A' and G_112015 not like '' group by G_112014") 
 runQuery(cursor, 'Voter Behavior in 2014 Primary If Voted in 2015 General', "SELECT DISTINCT P_052014, COUNT(P_052014) FROM voterFile where STATUS like 'A' and G_112015 not like '' group by P_052014") 
+
+#runQuery(cursor, 'Correlation?', "SELECT (Avg(P_052014 * G_112014) - Avg(P_052014) * Avg(G_112014)) / (stdev(P_052014) * stdev(G_112014)) AS Correlation FROM voterFile where STATUS like 'A'")
+
+
 

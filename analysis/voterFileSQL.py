@@ -1,9 +1,36 @@
 # Author:  Ben Tannenwald
 # Date:    November 4, 2017
-# Purpose: Run simple tests on SQLite DB 
+# Purpose: File to store functions for SQL-based analysis of Frankling County voting behaviors
 
-import sqlite3
+import sqlite3, math, numpy as np, matplotlib.pyplot as plt, operator
+from scipy import stats
+from scipy.stats.stats import pearsonr
+from numpy import arange,array,ones,linalg
+from pylab import plot,show
 
+
+# ***  I. Class to add stdev calculation to sqlite
+class StdevFunc:
+    def __init__(self):
+        self.M = 0.0
+        self.S = 0.0
+        self.k = 1
+
+    def step(self, value):
+        if value is None:
+            return
+        tM = self.M
+        self.M += (value - tM) / self.k
+        self.S += (value - tM) * (value - self.M)
+        self.k += 1
+
+    def finalize(self):
+        if self.k < 3:
+            return None
+        return math.sqrt(self.S / (self.k-2))
+
+
+# ***  II.  Functions
 def runQuery(db, label, string, quiet = False):
     """Run query using passed string"""
 
@@ -58,4 +85,26 @@ def printSimpleSummary(db, subsample=''):
         print 'Number of active voters on file ({0}):\t {1} \t({2:.1f}% of active voters)'.format( returnPartyName(query[0]), query[1], 100*query[1]/nActiveVoters[0][0] )
     print '=================================================================================\n'
     
+
+def calculateCorrelation(db, title, elections, constraints='', subsample=''):
+        """ function to calculate and print correlation between voting behavior given user-specified constraints """
+
+        if constraints != '':
+            constraints = 'where ' + constraints
+            if subsample != '':
+                constraints = constraints + ' and SUBSAMPLE == {0}'.format(subsample)
+        else:
+            if subsample != '':
+                constraints = 'where SUBSAMPLE == {0}'.format(subsample)
+
+        print constraints
+        # **  a. calculate stdev of one election
+        #runQuery(db, 'Stdev(P_052014)', "SELECT stdev(P_052014) FROM voterFile where STATUS like 'A'")
+
+        # **  b. calculate correlation between two elections
+        corr = runQuery(db, 'Correlation: {0} v {1}'.format(elections[0], elections[1]), "SELECT (Avg({0} * {1}) - Avg({0}) * Avg({1})) / (stdev({0}) * stdev({1})) AS Correlation FROM voterFile {2}".format(elections[0], elections[1], constraints), quiet=False)
+
+        print 'Correlation for {0}:\t {1:.2f}'.format(title, corr[0][0])
+        
+        return corr[0]
 
