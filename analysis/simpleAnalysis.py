@@ -11,10 +11,13 @@ with open('../makeSamples/masterFlatVoterFile_subSample_1.json') as data_file:
     subSample1 = json.load(data_file)
 with open('../makeSamples/masterFlatVoterFile_subSample_2.json') as data_file:
     subSample2 = json.load(data_file)
+with open('../makeSamples/masterFlatVoterFile_subSample_3.json') as data_file:
+    subSample3 = json.load(data_file)
 
 # 1. ***  Create voterFile  ***
 vFile1 = voterFile(subSample1)
 vFile2 = voterFile(subSample2)
+vFile3 = voterFile(subSample3)
 vFile1.printSimpleSummary()
 
 # 2. ***  Calculate some correlations  ***
@@ -50,5 +53,6 @@ prediction = vFile2.validateFit( registered='registered2012P', elections=['G_112
 
 # 5. ***  Dump .txt file printing out # likely voters in analyzed precincts  ***
 vFile2.dumpLikelyVotersByPrecinct(prediction, 'subsample2', registered='registered2012P', election='G_112014')
+vFile3.dumpLikelyVotersByPrecinct(prediction, 'subsample3', registered='registered2012P', election='G_112014')
 
 plt.show()
