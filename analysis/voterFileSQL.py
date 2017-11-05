@@ -27,13 +27,14 @@ class StdevFunc:
     def finalize(self):
         if self.k < 3:
             return None
-        return math.sqrt(self.S / (self.k-2))
+        return math.sqrt(self.S / (self.k-1))
 
 
 # ***  II.  Functions
 def runQuery(db, label, string, quiet = False):
     """Run query using passed string"""
 
+    #print string
     db.execute(string) 
     result = db.fetchall() 
     if not quiet:
@@ -97,14 +98,113 @@ def calculateCorrelation(db, title, elections, constraints='', subsample=''):
             if subsample != '':
                 constraints = 'where SUBSAMPLE == {0}'.format(subsample)
 
-        print constraints
         # **  a. calculate stdev of one election
         #runQuery(db, 'Stdev(P_052014)', "SELECT stdev(P_052014) FROM voterFile where STATUS like 'A'")
 
         # **  b. calculate correlation between two elections
-        corr = runQuery(db, 'Correlation: {0} v {1}'.format(elections[0], elections[1]), "SELECT (Avg({0} * {1}) - Avg({0}) * Avg({1})) / (stdev({0}) * stdev({1})) AS Correlation FROM voterFile {2}".format(elections[0], elections[1], constraints), quiet=False)
+        corr = runQuery(db, 'Correlation: {0} v {1}'.format(elections[0], elections[1]), "SELECT (Avg({0} * {1}) - Avg({0}) * Avg({1})) / (stdev({0}) * stdev({1})) AS Correlation FROM voterFile {2}".format(elections[0], elections[1], constraints), quiet=True)
 
-        print 'Correlation for {0}:\t {1:.2f}'.format(title, corr[0][0])
+        print 'Correlation for {0}:\t {1:.3f}'.format(title, corr[0][0])
         
         return corr[0]
 
+
+def returnBayesianProbability(db, title, elections, constraints='', subsample='', quiet=True, voted=True):
+        """ function to calculate and print Bayesian probability of voting behavior between two elections given user-specified constraints """
+        #  ***  P(A|B) = P(A) * P(B|A) / P(B)
+
+        if constraints != '':
+            constraints = 'where ' + constraints
+            if subsample != '':
+                constraints = constraints + ' and SUBSAMPLE == {0}'.format(subsample)
+        else:
+            if subsample != '':
+                constraints = 'where SUBSAMPLE == {0}'.format(subsample)
+
+        # ***  I. calculate bayesian relation between two elections
+        # **  A. P(A)
+        q_pA = runQuery(db, 'Bayesian P({0}):'.format(elections[0]), "SELECT DISTINCT {0}, count({0}) FROM voterFile {1} group by {0}".format(elections[0], constraints), quiet)
+        pA = calcProbability(q_pA)
+        # **  B. P(B)
+        q_pB = runQuery(db, 'Bayesian P({0}):'.format(elections[1]), "SELECT DISTINCT {0}, count({0}) FROM voterFile {1} group by {0}".format(elections[1], constraints), quiet)
+        pB = calcProbability(q_pB)
+        # **  C. P(B|A)
+        voted = '1' if voted else '-1'
+        q_pBA = runQuery(db, 'Bayesian P({0}):'.format(elections[1]), "SELECT DISTINCT {0}, count({0}) FROM voterFile {1} and {2} == {3} group by {0}".format(elections[1], constraints, elections[0], voted), quiet)
+        pBA = calcProbability(q_pBA)
+
+        if not quiet:
+            print 'P({0}): {1:.3f}\t P({2}): {3:.3f}\t P({2}|{0}): {4:.3f}'.format(elections[0], pA, elections[1], pB, pBA)
+
+        
+        return pBA * pA / float(pB)
+
+
+def calcProbability(input):
+    """ helper function to calculate voting probability from numbers returned from SQL query"""
+
+    num, denom = 0, 0
+
+    for line in input:
+        if line[0] == 1:
+            num = line[1]
+            denom = denom + line[1]
+        elif line[0] == -1:
+            denom = denom + line[1]
+        else:
+            print "Voting info DNE 1 or -1... it's {0} ... WHAT IS HAPPENING?!?!".format(line[0])
+
+    #print num, denom, num/float(denom)
+    return num/float(denom)
+                        
+
+def returnBayesianRelation(db, title, electionTypes, yearGap, voted, constraints='', subsample='', quiet=True):
+    """ function to automate calculating relation between two elections depending on whether each is primary or general (electionTypes), the years between the two elections (yearGap), and whether a voter voted in the earlier election (voted) """
+
+    # ** 0. Start analysis in 2008. this is arbitrary choice and can be adjusted
+    probabilities = []
+    firstYear, lastYear = 2008, 2008 + yearGap 
+
+    # ** 1. Loop over years
+    while lastYear <= 2016:
+        # make election strings
+        s_lastElection  = returnElectionString(electionTypes[0], lastYear)
+        s_firstElection = returnElectionString(electionTypes[1], firstYear)
+
+        # ** 2. Set registration month
+        if electionTypes[1] == 'G':
+            registrationMonth = '11'
+        elif electionTypes[1] == 'P' and firstYear %4 == 0:
+            registrationMonth = '03'
+        elif electionTypes[1] == 'P' and firstYear %4 != 0:
+            registrationMonth = '05'
+
+        # ** 3. Add registration date to constraints
+        if constraints !='':
+            constraintsTemp = constraints + "and REGISTERED <= Datetime('{0}-{1}-01 00:00:00')".format(str(firstYear), registrationMonth)
+        else:
+            constraintsTemp = "REGISTERED <= Datetime('{0}-{1}-01 00:00:00')".format(str(firstYear), registrationMonth)
+             
+        # ** 4. Get bayesian probability
+        probabilities.append( returnBayesianProbability(db, 'P( {0} | {1} )'.format(s_lastElection, s_firstElection), [s_lastElection, s_firstElection], constraintsTemp, subsample, quiet, voted) )
+
+        # ** 5. Increase year by one
+        firstYear = firstYear + 1
+        lastYear = lastYear + 1
+
+    print 'P( {0} ) -\t Avg: {1:.3f}\t StDev: {2:.3f}'.format(title, np.mean(probabilities), np.std(probabilities))
+
+
+def returnElectionString(generalOrPrimary, year):
+    """ function for returning full election string """
+    election = generalOrPrimary
+    
+    if generalOrPrimary == 'G':
+        election = election + '_11' + str(year)
+    if generalOrPrimary == 'P':
+        if year%4 == 0: # presidential year and primary in march
+            election = election + '_03' + str(year)
+        else: # primary in may
+            election = election + '_05' + str(year)
+
+    return election
