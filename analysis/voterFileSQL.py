@@ -129,8 +129,10 @@ def returnBayesianProbability(db, title, elections, constraints='', subsample=''
         q_pB = runQuery(db, 'Bayesian P({0}):'.format(elections[1]), "SELECT DISTINCT {0}, count({0}) FROM voterFile {1} group by {0}".format(elections[1], constraints), quiet)
         pB = calcProbability(q_pB)
         # **  C. P(B|A)
+        q_pBA=''
         voted = '1' if voted else '-1'
         q_pBA = runQuery(db, 'Bayesian P({0}):'.format(elections[1]), "SELECT DISTINCT {0}, count({0}) FROM voterFile {1} and {2} == {3} group by {0}".format(elections[1], constraints, elections[0], voted), quiet)
+            
         pBA = calcProbability(q_pBA)
 
         if not quiet:
@@ -140,16 +142,20 @@ def returnBayesianProbability(db, title, elections, constraints='', subsample=''
         return pBA * pA / float(pB)
 
 
-def calcProbability(input):
+
+def calcProbability(input, voted='1'):
     """ helper function to calculate voting probability from numbers returned from SQL query"""
 
     num, denom = 0, 0
 
     for line in input:
         if line[0] == 1:
-            num = line[1]
+            if str(voted)=='1':
+                num = line[1]
             denom = denom + line[1]
         elif line[0] == -1:
+            if str(voted)=='-1':
+                num = line[1]
             denom = denom + line[1]
         else:
             print "Voting info DNE 1 or -1... it's {0} ... WHAT IS HAPPENING?!?!".format(line[0])
@@ -194,7 +200,54 @@ def returnBayesianRelation(db, title, electionTypes, yearGap, voted, constraints
 
     print 'P( {0} ) -\t Avg: {1:.3f}\t StDev: {2:.3f}'.format(title, np.mean(probabilities), np.std(probabilities))
 
+    return np.mean(probabilities), np.std(probabilities)
+    
+def returnBayesianHistory(db, title, elections, voted, constraints='', subsample='', quiet=True):
+    """ function to automate calculating relation between multiple elections depending on the elections (elections), the voting pattern (voted). the first election/voted pair is the election in question"""
 
+
+    #  ***  P(A|B) = P(A) * P(B|A) / P(B)
+
+    # ** 0. Make election constraint string
+    electionConstraints = ''
+    for i, election in enumerate(elections):
+        if i == 1:
+            electionConstraints = '{0} == {1}'.format(str(election), str(voted[i]))
+        elif i > 1:
+            electionConstraints = electionConstraints + ' and {0} == {1}'.format(str(election), str(voted[i]))
+
+            
+    # ** 1. Handle rest of constraints
+    if constraints != '':
+        constraints = 'where ' + constraints
+        if subsample != '':
+            constraints = constraints + ' and SUBSAMPLE == {0}'.format(subsample)
+    else:
+        if subsample != '':
+            constraints = 'where SUBSAMPLE == {0}'.format(subsample)
+
+    # ***  2. calculate bayesian relation between election and complete election history
+    # **  A. P(A)
+    q_pA = runQuery(db, 'Bayesian P( {0} == {1} ):'.format(elections[0], voted[0]), "SELECT DISTINCT {0}, count({0}) FROM voterFile {1} group by {0}".format(elections[0], constraints), quiet)
+    pA = calcProbability(q_pA, voted[0])
+    # **  B. P(B)
+    case = "(CASE WHEN {0} THEN 1 ELSE -1 END)".format(electionConstraints)
+    q_pB = runQuery(db, 'Bayesian P( {0} ):'.format(electionConstraints), "SELECT DISTINCT {0}, count({0}) FROM voterFile {1} group by {0}".format(case, constraints), quiet)
+    pB = calcProbability(q_pB, voted[1])
+    # **  C. P(B|A)
+    q_pBA=''
+    q_pBA = runQuery(db, 'Bayesian P( {0} | {1} == {2} ):'.format(electionConstraints, elections[0], voted[0]), "SELECT DISTINCT {0}, count({0}) FROM voterFile {1} and {2} == {3} group by {0}".format(case, constraints, elections[0], voted[0]), quiet)
+            
+    pBA = calcProbability(q_pBA)
+
+    if not quiet:
+        print 'P({0}): {1:.3f}\t P({2}): {3:.3f}\t P({2}|{0}): {4:.3f}'.format(elections[0], pA, elections[1], pB, pBA)
+
+        
+    return pBA * pA / float(pB)
+
+
+    
 def returnElectionString(generalOrPrimary, year):
     """ function for returning full election string """
     election = generalOrPrimary
